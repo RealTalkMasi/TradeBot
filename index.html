@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A plain-English guide to five automated paper-trading strategies running on a Raspberry Pi, with the honest scoreboard.">
+<meta name="color-scheme" content="light dark">
+<meta property="og:title" content="The Practice Desk">
+<meta property="og:description" content="Five trading strategies, fake money, real prices - and the part where doing nothing beat all of them.">
+<meta property="og:type" content="article">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='.9em'%20font-size='90'%3E%F0%9F%A7%AA%3C/text%3E%3C/svg%3E">
+<title>The Practice Desk</title>
+<style>
+  /* ── tokens: complete light palette on bare :root ────────────────────────── */
+  :root {
+    --ground:      #EFF1F3;
+    --surface:     #FFFFFF;
+    --surface-alt: #E7EAEE;
+    --ink:         #14181C;
+    --ink-soft:    #3B454F;
+    --muted:       #5B6672;
+    --rule:        #D3D9DF;
+    --rule-soft:   #E2E6EA;
+    --accent:      #1F4E7A;
+    --accent-soft: #DCE6F0;
+    --pos:         #2E6F5E;
+    --neg:         #9C3B2E;
+    --warn:        #8A5F1E;
+    --warn-bg:     #F5EBD8;
+
+    --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans:  ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono:  ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
+
+    --measure: 65ch;
+    --step--1: 0.8125rem;
+    --step-0:  1.0625rem;
+    --step-1:  1.25rem;
+    --step-2:  1.5rem;
+    --step-3:  2rem;
+    --step-4:  2.75rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #0E1418;
+      --surface:     #151C21;
+      --surface-alt: #1C252B;
+      --ink:         #E4E9ED;
+      --ink-soft:    #C2CBD3;
+      --muted:       #94A1AC;
+      --rule:        #263239;
+      --rule-soft:   #1E282E;
+      --accent:      #7FB2DC;
+      --accent-soft: #1B2C3B;
+      --pos:         #74C2A6;
+      --neg:         #E08E7B;
+      --warn:        #D9B173;
+      --warn-bg:     #2A2115;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:      #0E1418;
+    --surface:     #151C21;
+    --surface-alt: #1C252B;
+    --ink:         #E4E9ED;
+    --ink-soft:    #C2CBD3;
+    --muted:       #94A1AC;
+    --rule:        #263239;
+    --rule-soft:   #1E282E;
+    --accent:      #7FB2DC;
+    --accent-soft: #1B2C3B;
+    --pos:         #74C2A6;
+    --neg:         #E08E7B;
+    --warn:        #D9B173;
+    --warn-bg:     #2A2115;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: var(--step-0);
+    line-height: 1.65;
+    margin: 0;
+    padding: 0 1.25rem 6rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: var(--measure); margin: 0 auto; }
+  .wide { max-width: 58rem; margin: 0 auto; }
+
+  /* ── masthead ───────────────────────────────────────────────────────────── */
+  .masthead {
+    border-bottom: 2px solid var(--ink);
+    padding: 4.5rem 0 1.5rem;
+    margin-bottom: 2.5rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 1.25rem;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: var(--step-4);
+    line-height: 1.08;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+  .standfirst {
+    font-size: var(--step-1);
+    line-height: 1.5;
+    color: var(--ink-soft);
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  h2 {
+    font-family: var(--serif);
+    font-size: var(--step-3);
+    line-height: 1.15;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 3.5rem 0 0.25rem;
+  }
+  h3 {
+    font-family: var(--serif);
+    font-size: var(--step-1);
+    font-weight: 600;
+    text-wrap: balance;
+    margin: 2rem 0 0.5rem;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1.5rem;
+  }
+  p { margin: 0 0 1.15rem; text-wrap: pretty; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+  strong { font-weight: 650; }
+  code, .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  code {
+    font-size: 0.9em;
+    background: var(--surface-alt);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+  }
+
+  ul, ol { margin: 0 0 1.15rem; padding-left: 1.35rem; }
+  li { margin-bottom: 0.5rem; }
+
+  /* ── contents ───────────────────────────────────────────────────────────── */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .toc p {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 0.75rem;
+  }
+  .toc ol {
+    columns: 2;
+    column-gap: 2rem;
+    margin: 0;
+    padding-left: 1.2rem;
+    font-size: var(--step--1);
+  }
+  .toc li { margin-bottom: 0.35rem; }
+  @media (max-width: 34rem) { .toc ol { columns: 1; } }
+
+  /* ── callouts ───────────────────────────────────────────────────────────── */
+  .note {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 1rem 1.25rem;
+    margin: 1.75rem 0;
+    border-radius: 0 3px 3px 0;
+  }
+  .note > :last-child { margin-bottom: 0; }
+  .note-label {
+    display: block;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.4rem;
+  }
+  .caution { border-left-color: var(--warn); background: var(--warn-bg); }
+  .caution .note-label { color: var(--warn); }
+
+  /* ── scoreboard ─────────────────────────────────────────────────────────── */
+  .tablewrap { overflow-x: auto; margin: 1.5rem 0 0.75rem; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--step--1);
+    background: var(--surface);
+  }
+  caption {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-bottom: 0.6rem;
+  }
+  th, td { padding: 0.6rem 0.75rem; text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--ink);
+  }
+  tbody tr { border-bottom: 1px solid var(--rule-soft); }
+  tbody td { font-variant-numeric: tabular-nums; font-family: var(--mono); }
+  tbody td:first-child { font-family: var(--sans); font-weight: 600; }
+  tfoot td {
+    border-top: 2px solid var(--ink);
+    font-weight: 700;
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+  tfoot td:first-child { font-family: var(--sans); }
+  .up { color: var(--pos); }
+  .down { color: var(--neg); }
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.15em 0.5em;
+    border-radius: 2px;
+    border: 1px solid var(--rule);
+    color: var(--muted);
+  }
+  .pill-parked { border-color: var(--warn); color: var(--warn); background: var(--warn-bg); }
+  .figcap { font-size: var(--step--1); color: var(--muted); margin: 0.5rem 0 0; }
+
+  /* ── strategy cards ─────────────────────────────────────────────────────── */
+  .cards { display: grid; gap: 1rem; margin: 1.75rem 0; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.25rem 1.4rem;
+  }
+  .card h3 { margin: 0 0 0.15rem; font-size: var(--step-1); }
+  .card .bet {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--muted);
+    margin: 0 0 0.85rem;
+  }
+  .card p:last-child { margin-bottom: 0; }
+  .spec {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.3rem 1rem;
+    font-size: var(--step--1);
+    margin: 0.9rem 0 0;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--rule-soft);
+  }
+  .spec dt {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-top: 0.15em;
+  }
+  .spec dd { margin: 0; }
+
+  /* ── numbered walkthrough (a real sequence) ─────────────────────────────── */
+  .steps { list-style: none; padding: 0; margin: 1.75rem 0; counter-reset: s; }
+  .steps li {
+    counter-increment: s;
+    display: grid;
+    grid-template-columns: 2.25rem 1fr;
+    gap: 1rem;
+    padding: 0.9rem 0;
+    border-top: 1px solid var(--rule-soft);
+    margin: 0;
+  }
+  .steps li::before {
+    content: counter(s, decimal-leading-zero);
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--accent);
+    padding-top: 0.15em;
+  }
+  .steps strong { display: block; }
+
+  /* ── glossary ───────────────────────────────────────────────────────────── */
+  .glossary { margin: 1.5rem 0; }
+  .glossary div {
+    padding: 0.85rem 0;
+    border-top: 1px solid var(--rule-soft);
+  }
+  .glossary dt { font-weight: 650; margin-bottom: 0.2rem; }
+  .glossary dd { margin: 0; color: var(--ink-soft); }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    font-size: var(--step--1);
+    color: var(--muted);
+  }
+  hr.div {
+    border: 0;
+    border-top: 1px solid var(--rule);
+    margin: 3rem 0 0;
+  }
+</style>
+</head>
+<body>
+
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Paper Trading Lab &middot; Notes &amp; Results &middot; 14 August 2026</p>
+    <h1>The Practice Desk</h1>
+    <p class="standfirst">A Raspberry Pi in a spare room runs five trading strategies against the
+      real stock market with fake money. Here is everything it does, in plain English &mdash;
+      including the part where doing nothing at all has beaten every one of them.</p>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <nav class="toc" aria-label="Contents">
+      <p>What's in here</p>
+      <ol>
+        <li><a href="#what">What this actually is</a></li>
+        <li><a href="#market">The market in 90 seconds</a></li>
+        <li><a href="#idea">The one idea behind all five</a></li>
+        <li><a href="#five">The five strategies</a></li>
+        <li><a href="#trade">How one trade works</a></li>
+        <li><a href="#risk">How it avoids blowing up</a></li>
+        <li><a href="#score">The scoreboard</a></li>
+        <li><a href="#learned">What we've learned</a></li>
+        <li><a href="#next">What would change our minds</a></li>
+        <li><a href="#glossary">Glossary</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="what">What this actually is</h2>
+    <p class="kicker">Start here</p>
+    <p>A small computer &mdash; a Raspberry Pi, roughly the size of a deck of cards &mdash; sits
+      on a shelf and watches the stock market all day. Every minute it asks: <em>is anything
+      happening that one of my five strategies cares about?</em> When the answer is yes, it writes
+      down a pretend trade: what it bought or sold, at what price, and why.</p>
+    <p><strong>No real money is involved.</strong> Not a dollar. This is called <em>paper
+      trading</em> &mdash; the market data is completely real and live, but the buying and selling
+      happens only in a text file. If a strategy loses $1,000, nothing has actually been lost. If
+      it makes $1,000, nobody gets paid.</p>
+    <p>That distinction is the whole point. The goal isn't to make money right now. It's to find out
+      whether any of these ideas <em>would</em> make money, before risking anything real. Most
+      trading ideas that sound clever turn out not to work, and the cheapest possible way to
+      discover that is with fake money and honest bookkeeping.</p>
+
+    <div class="note">
+      <span class="note-label">Why share it</span>
+      <p>Most trading content online shows you the wins. This page shows you the whole ledger,
+        including a strategy that lost 10% of its pretend account in a single afternoon. The
+        failures are the useful part &mdash; they're where the actual learning is.</p>
+    </div>
+
+    <h2 id="market">The market in 90 seconds</h2>
+    <p class="kicker">The absolute basics</p>
+    <p>A <strong>share</strong> is a small piece of ownership in a company. If a company is split
+      into a billion shares and you own one, you own a billionth of it. Shares are bought and sold
+      all day on an exchange, and the price is simply whatever the most recent buyer and seller
+      agreed on.</p>
+    <p>Prices move because opinions change. Good news, bad news, someone big needing to sell in a
+      hurry &mdash; every trade nudges the price. Over a day, a normal large company might move 1%.
+      A small, thinly-traded one might move 40%.</p>
+
+    <h3>Two things you need to know to follow the rest</h3>
+    <p><strong>You can bet in both directions.</strong> Going <em>long</em> is the familiar one:
+      buy at $10, hope to sell at $12. Going <em>short</em> is the mirror image &mdash; you borrow
+      a share you don't own, sell it at $10, and hope to buy it back at $8 to return it, pocketing
+      the difference. Shorting is how you profit when something falls. It's also more dangerous,
+      because a price can rise without limit, so a short can lose more than you put in.</p>
+    <p><strong>Trading is never free.</strong> Every trade has a hidden cost. Buyers and sellers
+      never quite meet at one price &mdash; there's always a small gap called the <em>spread</em>,
+      and you pay it coming in and going out. Add <em>slippage</em> (the price moving between when
+      you decide and when the order lands) and every round trip quietly costs you something. This
+      sounds like a footnote. It isn't; see <a href="#learned">what we've learned</a>.</p>
+
+    <h2 id="idea">The one idea behind all five</h2>
+    <p class="kicker">The core bet</p>
+    <p>All five strategies are versions of the same wager, called <strong>mean
+      reversion</strong>: <em>this price has moved too far, too fast, and it will snap back.</em>
+      Like a rubber band. Stretch it far enough and it pulls home.</p>
+    <p>The reference point they measure "too far" against is usually <strong>VWAP</strong> &mdash;
+      the volume-weighted average price, which is roughly the average price everyone actually paid
+      for that stock today. If a stock is trading well above its VWAP, most of today's buyers are
+      already in profit and might take it. That's the theory.</p>
+    <p>The opposite bet also exists and is equally respectable: <strong>momentum</strong> &mdash;
+      <em>this is moving, so it'll keep moving.</em> Both can be true depending on the day, which
+      is exactly why this is hard. A rubber band snaps back, right up until the day it's actually a
+      rocket.</p>
+
+    <div class="caution note">
+      <span class="note-label">The flaw we found in all of it</span>
+      <p>Every one of these strategies measured <em>how far</em> a price had moved and treated
+        distance as proof of exhaustion. Distance is not exhaustion. A stock that has run 12% can
+        easily run 20%. Realising this &mdash; and building a second layer that asks whether the
+        move is actually <em>losing energy</em> &mdash; has been the main work of the last month.</p>
+    </div>
+
+    <h2 id="five">The five strategies</h2>
+    <p class="kicker">What each one bets on</p>
+    <p>Each strategy keeps its own separate pretend account of <strong>$10,000</strong>, its own
+      ledger, and its own rules. They don't share money and they don't consult each other. That way
+      one bad idea can't contaminate the record of a good one.</p>
+
+    <div class="cards">
+      <article class="card">
+        <h3>Swing</h3>
+        <p class="bet">Buy healthy companies on a bad day</p>
+        <p>The only slow one. Once each morning it looks for a solid, long-term-rising stock that
+          has just had a sharp short-term drop, and buys it. It sells when the price recovers to
+          its recent average, or after ten trading days, or if it falls too far.</p>
+        <dl class="spec">
+          <dt>Acts</dt><dd>Once a day, just after the market opens</dd>
+          <dt>Holds</dt><dd>Days to weeks</dd>
+          <dt>Exits</dt><dd>Recovery to the 5-day average, a hard stop, or a 10-day time limit</dd>
+        </dl>
+      </article>
+
+      <article class="card">
+        <h3>Fade-the-open</h3>
+        <p class="bet">The first half hour overreacts</p>
+        <p>The opening minutes of the trading day are the noisiest. This one only trades between
+          9:30 and 10:00 in the morning: if a big, familiar stock has jerked away from its average
+          price, it bets on a snap back toward it. Small target, quick exit.</p>
+        <dl class="spec">
+          <dt>Acts</dt><dd>9:30&ndash;10:00 a.m. only</dd>
+          <dt>Holds</dt><dd>Minutes</dd>
+          <dt>Exits</dt><dd>Back at the average price, or a 0.8% stop</dd>
+        </dl>
+      </article>
+
+      <article class="card">
+        <h3>MeanRevert</h3>
+        <p class="bet">Same bet, but check the weather first</p>
+        <p>Nearly identical to Fade-the-open, with one addition: it checks which way the overall
+          market is leaning before betting. It will only buy a dip if the market as a whole is up,
+          and only sell a pop if the market is down. It is the only strategy that looks outside the
+          single stock in front of it &mdash; and, so far, the best performer.</p>
+        <dl class="spec">
+          <dt>Acts</dt><dd>Through the day</dd>
+          <dt>Holds</dt><dd>Minutes to hours, always closed by the bell</dd>
+          <dt>Exits</dt><dd>Back at the average price, or a stop</dd>
+        </dl>
+      </article>
+
+      <article class="card">
+        <h3>ORB-fade</h3>
+        <p class="bet">Breakouts are usually traps</p>
+        <p>It watches where a stock trades in the first thirty minutes &mdash; the "opening range."
+          When the price later pushes out of that range, most traders read that as a breakout and
+          chase it. This strategy bets the opposite: that the break fails and the price falls back
+          inside. We have tested this one exhaustively and it does not work; see the scoreboard.</p>
+        <dl class="spec">
+          <dt>Acts</dt><dd>After 10:00 a.m.</dd>
+          <dt>Holds</dt><dd>Minutes to hours</dd>
+          <dt>Exits</dt><dd>Target and stop, both sized from the opening range</dd>
+        </dl>
+      </article>
+
+      <article class="card">
+        <h3>Spike-fade <span class="pill pill-parked">Parked</span></h3>
+        <p class="bet">Short the stocks that have gone vertical</p>
+        <p>The wild one. It hunts small companies that are up 10% or more in a day and bets against
+          them once they show signs of rolling over. When it's right the payoff is large. When it's
+          wrong &mdash; which is often &mdash; the stock keeps squeezing higher and the loss is
+          fast. It lost 9% of its account in one morning, so it has been <strong>parked</strong>:
+          it still hunts and records what it would have done, but its account is frozen and it can't
+          affect anything.</p>
+        <dl class="spec">
+          <dt>Acts</dt><dd>Through the day</dd>
+          <dt>Holds</dt><dd>Minutes</dd>
+          <dt>Exits</dt><dd>A trailing stop that follows the price down</dd>
+        </dl>
+      </article>
+    </div>
+
+    <h2 id="trade">How one trade works, start to finish</h2>
+    <p class="kicker">A worked example</p>
+    <p>Here is a real one from the Spike-fade ledger, a stock we'll call LITX, on 12 August. It
+      was the best trade of that day.</p>
+
+    <ol class="steps">
+      <li><strong>Notice</strong> LITX is up more than 10% from where it opened. It goes on the
+        watch list.</li>
+      <li><strong>Check it's tradeable</strong> &mdash; above $5 a share, and enough people are
+        trading it that we could realistically get in and out.</li>
+      <li><strong>Wait for a crack.</strong> Not just "it's up a lot," but evidence the run is
+        breaking: the price slips below the last fifteen minutes' floor and sits at least 1% below
+        the day's high.</li>
+      <li><strong>Decide the exit before entering.</strong> The stop goes just above the day's
+        high. If the price gets there, the idea was wrong and we're out. Nothing about this is
+        negotiable later.</li>
+      <li><strong>Size the position from the risk, not the reward.</strong> The most this trade may
+        lose is 1% of the account, about $100. The distance to the stop determines how many shares
+        that allows &mdash; a wider stop means fewer shares. Every trade risks the same $100
+        regardless of the stock.</li>
+      <li><strong>Enter.</strong> Sell short 133 shares at $36.29.</li>
+      <li><strong>Manage.</strong> As the price falls, the stop follows it down, locking in
+        progress. It never moves the other way.</li>
+      <li><strong>Exit</strong> at $34.62 when the trailing stop is hit. Gross profit $222,
+        minus $4 in spread and slippage costs, so <span class="num up">+$217.48</span> booked.</li>
+      <li><strong>Write it down</strong> &mdash; entry, exit, size, cost, profit, and the reason
+        &mdash; so it can be argued with later.</li>
+    </ol>
+    <p>That was a good trade. The same strategy took fifteen others that day and thirteen of them
+      lost, which is the honest context for any single winning example. <strong>One trade tells you
+      nothing.</strong> Be suspicious of anyone who shows you one.</p>
+
+    <h2 id="risk">How it avoids blowing up</h2>
+    <p class="kicker">Guardrails</p>
+    <p>Losing is normal; being <em>ruined</em> is a design failure. Five rules run underneath every
+      strategy:</p>
+    <ul>
+      <li><strong>Fixed risk per trade.</strong> Every position is sized so a loss costs about the
+        same small slice of the account. No single trade can matter much.</li>
+      <li><strong>An exit decided in advance.</strong> The stop is set before entry, and moves only
+        in the direction that protects profit.</li>
+      <li><strong>A cooldown.</strong> After a losing trade in a stock, that stock is benched for a
+        while. We added this after finding that most of the worst losses were the bot re-entering
+        the same collapsing name again and again.</li>
+      <li><strong>A daily cap on how often it can touch one stock.</strong> Two attempts, then it
+        moves on.</li>
+      <li><strong>A circuit breaker.</strong> If a strategy drops 8% from its starting balance, it
+        halts and waits for a human. That's what happened to Spike-fade.</li>
+    </ul>
+
+    <h2 id="score">The scoreboard</h2>
+    <p class="kicker">Where things actually stand</p>
+    <p>Each strategy started with a pretend $10,000. Every number below is after subtracting
+      realistic trading costs.</p>
+
+    <div class="wide">
+      <div class="tablewrap">
+        <table>
+          <caption>Paper results as of 14 August 2026</caption>
+          <thead>
+            <tr>
+              <th scope="col">Strategy</th>
+              <th scope="col">Balance</th>
+              <th scope="col">Profit</th>
+              <th scope="col">Trades</th>
+              <th scope="col">Won</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>MeanRevert</td><td>$10,134</td><td class="up">+$134</td>
+              <td>44</td><td>48%</td><td><span class="pill">Running</span></td>
+            </tr>
+            <tr>
+              <td>Fade-the-open</td><td>$10,071</td><td class="up">+$71</td>
+              <td>274</td><td>42%</td><td><span class="pill">Running</span></td>
+            </tr>
+            <tr>
+              <td>Swing</td><td>$9,975</td><td class="down">&minus;$25</td>
+              <td>31</td><td>39%</td><td><span class="pill">Running</span></td>
+            </tr>
+            <tr>
+              <td>ORB-fade</td><td>$9,781</td><td class="down">&minus;$219</td>
+              <td>137</td><td>42%</td><td><span class="pill">Running</span></td>
+            </tr>
+            <tr>
+              <td>Spike-fade</td><td>$8,993</td><td class="down">&minus;$1,007</td>
+              <td>39</td><td>36%</td><td><span class="pill pill-parked">Parked</span></td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td>Four running strategies</td>
+              <td>$39,961</td>
+              <td class="down">&minus;$39</td>
+              <td>486</td><td>42%</td><td>&minus;0.10%</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p class="figcap">Spike-fade is excluded from the total because its account is frozen. Win
+        percentages below 50% are not automatically bad &mdash; a strategy can win 40% of the time
+        and still profit if the wins are bigger than the losses.</p>
+    </div>
+
+    <h3>Now the comparison that matters</h3>
+    <p>The four running strategies are collectively down <span class="num down">0.10%</span>. Over
+      the same stretch, simply buying SPY &mdash; a single fund that owns the 500 largest American
+      companies &mdash; and then going to the beach would have returned:</p>
+    <div class="wide">
+      <div class="tablewrap">
+        <table>
+          <caption>SPY buy-and-hold, same period</caption>
+          <thead>
+            <tr><th scope="col">Held for</th><th scope="col">Return</th><th scope="col">$10,000 becomes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Two weeks</td><td class="up">+4.88%</td><td>$10,488</td></tr>
+            <tr><td>One month</td><td class="up">+3.06%</td><td>$10,306</td></tr>
+            <tr><td>Three months</td><td class="up">+5.06%</td><td>$10,506</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p><strong>Doing nothing beat all five strategies.</strong> That is the single most important
+      sentence on this page, and it is the normal result &mdash; the overwhelming majority of active
+      trading strategies lose to a boring index fund after costs. If this project ever produces
+      something that reliably beats buy-and-hold, that will be genuinely surprising and we'll show
+      the working.</p>
+
+    <h2 id="learned">What we've learned</h2>
+    <p class="kicker">The useful part</p>
+
+    <h3>Ignoring costs invents profits that don't exist</h3>
+    <p>One strategy looked like a winner for weeks. Then we added realistic spread and slippage to
+      the bookkeeping and the same trades came out at <span class="num down">&minus;$91</span>. The
+      "edge" had been the absence of costs the entire time. Any backtest that doesn't subtract
+      trading costs is fiction.</p>
+
+    <h3>Distance is not exhaustion</h3>
+    <p>Every strategy assumed that a price which had moved a long way was ready to turn. Reviewing
+      one bad day trade by trade, the pattern was brutal: of the trades where the bot sold short a
+      bar that had just set a new high for the day, <strong>every single one lost</strong>. It was
+      standing in front of a moving train and calling it a rubber band.</p>
+
+    <h3>A safety check can accidentally forbid the trade</h3>
+    <p>So we built a rule: don't bet against something that just made a new high. Sensible &mdash;
+      and for two of the five strategies it silently blocked <em>almost every trade</em>, because
+      those strategies enter at a new high by definition. The rule wasn't detecting a bad trade, it
+      was contradicting the strategy's own reason for existing. Measuring it before switching it on
+      is the only reason we caught that.</p>
+
+    <h3>Small samples lie confidently</h3>
+    <p>Thirty trades can show a beautiful win rate and mean nothing. Fade-the-open has 274 trades,
+      which is starting to be worth something; Swing has 31, which is barely a rumour. Most trading
+      claims you'll encounter are built on samples too small to support them.</p>
+
+    <h3>Bugs can quietly hide the truth</h3>
+    <p>For five days, Spike-fade appeared to be doing nothing at all. It had in fact traded 39 times
+      and lost $1,007 &mdash; the display was reading the wrong ledger. Separately, a Wi-Fi dropout
+      froze one strategy so it couldn't close its open positions for an entire day. With fake money
+      those are embarrassments. With real money the second one is how people get hurt: the stop
+      that can't fire is the one you were relying on.</p>
+
+    <h2 id="next">What would change our minds</h2>
+    <p class="kicker">The bar</p>
+    <p>Before any of this touches real money, all of the following would have to be true, and none
+      of them are yet:</p>
+    <ul>
+      <li>A few hundred trades at minimum &mdash; not thirty.</li>
+      <li>Profitable after costs, measured on data the strategy was never tuned against.</li>
+      <li>Beating buy-and-hold, because that's the free alternative.</li>
+      <li>Tested through a falling market, not just a rising one. Every strategy here looks better
+        than it is in a market that mostly goes up.</li>
+      <li>Losses that stay boring. A strategy that makes 20% and then loses 40% is not a strategy.</li>
+    </ul>
+    <p>Realistically, most or all of these five will fail that bar and be retired. That's the
+      expected outcome of testing ideas honestly, and it's cheaper to find out this way.</p>
+
+    <h2 id="glossary">Glossary</h2>
+    <p class="kicker">Reference</p>
+    <dl class="glossary">
+      <div><dt>Long / Short</dt><dd>Long: you profit if the price rises. Short: you borrow and sell
+        first, and profit if it falls.</dd></div>
+      <div><dt>Paper trading</dt><dd>Recording trades with real market prices but imaginary money,
+        to test an idea without risking anything.</dd></div>
+      <div><dt>VWAP</dt><dd>Volume-weighted average price &mdash; roughly the average price paid
+        for a stock so far today. Used as the "fair" reference point.</dd></div>
+      <div><dt>Stop</dt><dd>A pre-set price at which a losing position is closed, decided before
+        entering.</dd></div>
+      <div><dt>Spread &amp; slippage</dt><dd>The unavoidable costs of trading: the gap between
+        buying and selling price, and the price drifting before your order lands.</dd></div>
+      <div><dt>Mean reversion</dt><dd>The bet that an unusually large move will partly reverse.</dd></div>
+      <div><dt>Momentum</dt><dd>The opposite bet: that a move will continue.</dd></div>
+      <div><dt>Backtest</dt><dd>Running a strategy against historical data to see how it would have
+        done. Easy to fool yourself with.</dd></div>
+      <div><dt>Win rate</dt><dd>The share of trades that made money. On its own it means little
+        &mdash; the size of wins versus losses matters more.</dd></div>
+      <div><dt>SPY</dt><dd>A fund tracking the 500 largest US companies. The default "do nothing"
+        benchmark every strategy is measured against.</dd></div>
+    </dl>
+
+    <hr class="div">
+    <footer>
+      <p><strong>This is not financial advice, and nothing here is a recommendation to buy or sell
+        anything.</strong> It's a record of an experiment with imaginary money, shared because the
+        process is interesting and the failures are instructive. If you're thinking about trading
+        real money, understand that most people who try it lose, and talk to someone licensed to
+        advise you.</p>
+      <p>A personal side project, run on a Raspberry Pi at home. Not affiliated with any company or
+        employer. Figures read straight from the strategies' own ledgers on 14 August 2026.</p>
+    </footer>
+  </div>
+</main>
+
+</body>
+</html>
